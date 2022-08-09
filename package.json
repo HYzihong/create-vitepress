@@ -2,9 +2,14 @@
   "name": "create-vitepress",
   "version": "0.0.1",
   "description": "Scaffolding out a VuePress docs, blog, repro repo or other interesting things",
-  "main": "index.js",
+  "type": "module",
+  "bin": {
+    "create-vitepress": "cli.cjs"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "prepare": "husky install",
+    "format": "prettier --write .",
+    "build": "zx ./scripts/build.mjs"
   },
   "repository": {
     "type": "git",
@@ -16,5 +21,24 @@
   "bugs": {
     "url": "https://github.com/HYzihong/create-vitepress/issues"
   },
-  "homepage": "https://github.com/HYzihong/create-vitepress#readme"
+  "homepage": "https://github.com/HYzihong/create-vitepress#readme",
+  "dependencies": {
+    "@types/eslint": "^8.4.5",
+    "@types/prompts": "^2.0.14",
+    "esbuild": "^0.14.54",
+    "eslint": "^8.21.0",
+    "gradient-string": "^2.0.1",
+    "husky": "^8.0.1",
+    "kolorist": "^1.5.1",
+    "lint-staged": "^13.0.3",
+    "minimist": "^1.2.6",
+    "prettier": "^2.7.1",
+    "prompts": "^2.4.2",
+    "zx": "^7.0.8"
+  },
+  "lint-staged": {
+    "*.{js,ts,vue,json}": [
+      "prettier --write"
+    ]
+  }
 }
