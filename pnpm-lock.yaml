@@ -5,6 +5,7 @@ importers:
   .:
     specifiers:
       '@types/eslint': ^8.4.5
+      '@types/minimist': ^1.2.2
       '@types/prompts': ^2.0.14
       esbuild: ^0.14.54
       eslint: ^8.21.0
@@ -18,6 +19,7 @@ importers:
       zx: ^7.0.8
     dependencies:
       '@types/eslint': 8.4.5
+      '@types/minimist': 1.2.2
       '@types/prompts': 2.0.14
       esbuild: 0.14.54
       eslint: 8.21.0

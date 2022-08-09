@@ -24,6 +24,7 @@
   "homepage": "https://github.com/HYzihong/create-vitepress#readme",
   "dependencies": {
     "@types/eslint": "^8.4.5",
+    "@types/minimist": "^1.2.2",
     "@types/prompts": "^2.0.14",
     "esbuild": "^0.14.54",
     "eslint": "^8.21.0",
