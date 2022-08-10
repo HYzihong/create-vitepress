@@ -7,13 +7,9 @@ import minimist from 'minimist'
 import prompts from 'prompts'
 import { red, green, bold } from 'kolorist'
 import banner from './utils/banner'
+import { canSkipEmptying, emptyDir } from './utils/empty'
+import getCommand from './utils/command'
 
-// 1. type <=select
-// 2. name
-// 3. description
-// 4. email
-// 5. your name =>author
-// 6. repo url
 async function init() {
   console.log(`\n${banner}\n`)
 
@@ -25,7 +21,12 @@ async function init() {
   // --base
   // --doc
   // --blog
+  // --base
   const argv = minimist(process.argv.slice(2), {
+    alias: {
+      // config use ts
+      typescript: ['ts']
+    },
     // all arguments are treated as booleans
     boolean: true
   })
@@ -40,7 +41,10 @@ async function init() {
   const forceOverwrite = argv.force
 
   let result: {
+    typescript?: boolean
     projectName?: string
+    shouldOverwrite?: boolean
+    needsTypeScript?: boolean
     type?: string
     email?: string
     description?: string
@@ -48,9 +52,15 @@ async function init() {
     repo?: string
   } = {}
 
-  const isFeatureFlagsUsed = typeof (argv.blog ?? argv.docs ?? argv.base) === 'boolean'
+  const isFeatureFlagsUsed = typeof (argv.blog ?? argv.docs ?? argv.base ?? argv.ts) === 'boolean'
 
   // Prompts:
+  // 1. type <=select
+  // 2. name
+  // 3. description
+  // 4. email
+  // 5. your name =>author
+  // 6. repo url
   try {
     result = await prompts(
       [
@@ -67,6 +77,25 @@ async function init() {
             { title: 'blog', value: 'blog', description: 'Create a blog with VitePress.' }
           ],
           initial: 0
+        },
+        {
+          name: 'shouldOverwrite',
+          type: () => (canSkipEmptying(targetDir) || forceOverwrite ? null : 'confirm'),
+          message: () => {
+            const dirForPrompt =
+              targetDir === '.' ? 'Current directory' : `Target directory "${targetDir}"`
+
+            return `${dirForPrompt} is not empty. Remove existing files and continue?`
+          }
+        },
+        {
+          name: 'overwriteChecker',
+          type: (prev, values) => {
+            if (values.shouldOverwrite === false) {
+              throw new Error(red('✖') + ' Operation cancelled')
+            }
+            return null
+          }
         },
         {
           name: 'projectName',
@@ -98,6 +127,14 @@ async function init() {
           type: 'text',
           message: `What's the repo of your project?`,
           initial: ''
+        },
+        {
+          name: 'needsTypeScript',
+          type: () => (isFeatureFlagsUsed ? null : 'toggle'),
+          message: 'Add TypeScript?',
+          initial: false,
+          active: 'Yes',
+          inactive: 'No'
         }
       ],
       {
@@ -111,10 +148,64 @@ async function init() {
     process.exit(1)
   }
 
-  // const { projectName, description, author, email, repo } = result
-  // console.log(result);
+  const { projectName, description, author, email, repo, shouldOverwrite, needsTypeScript } = result
+  console.log(result)
 
   const root = path.join(cwd, targetDir)
+
+  if (fs.existsSync(root) && shouldOverwrite) {
+    // rm -rf dir
+    emptyDir(root)
+  } else if (!fs.existsSync(root)) {
+    // mkdir dir
+    fs.mkdirSync(root)
+  }
+
+  // base
+  /*
+    ├─ docs
+    │  ├─ .vitepress
+    │  │  └─ config.js
+    │  └─ index.md
+    └─ package.json
+    └─ .gitignore
+    └─ LICENSSE
+  */
+
+  // blog
+  /*
+    ├─ post
+    │  ├─ .vitepress
+    │  │  └─ config.js
+    │  └─ index.md
+    └─ package.json
+    └─ .gitignore
+    └─ LICENSSE
+  */
+
+  /*
+    template
+    - base
+      - .vitepress
+        - config.js
+      - package.json
+  */
+
+  const pkg = { name: projectName, version: '0.0.1' }
+  fs.writeFileSync(path.resolve(root, 'package.json'), JSON.stringify(pkg, null, 2))
+
+  const templateRoot = path.resolve(__dirname, 'template')
+
+  const userAgent = process.env.npm_config_user_agent ?? ''
+  const packageManager = /pnpm/.test(userAgent) ? 'pnpm' : /yarn/.test(userAgent) ? 'yarn' : 'npm'
+  console.log(`\nDone. Now run:\n`)
+  if (root !== cwd) {
+    console.log(`  ${bold(green(`cd ${path.relative(cwd, root)}`))}`)
+  }
+  console.log(`  ${bold(green(getCommand(packageManager, 'install')))}`)
+  console.log(`  ${bold(green(getCommand(packageManager, 'dcos:dev')))}`)
+  console.log(`  ${bold(green(getCommand(packageManager, 'dcos:builds')))}`)
+  console.log()
 }
 
 init().catch((err) => {
