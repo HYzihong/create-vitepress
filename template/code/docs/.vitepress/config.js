@@ -5,27 +5,19 @@
 const pkg = require('../../package.json')
 
 module.exports = {
-  // Ref https://vitepress.vuejs.org/config/app-configs.html
-
-  // Ref https://vitepress.vuejs.org/config/app-configs.html#title
+  /**
+   * Ref https://vitepress.vuejs.org/config/app-configs.html
+   *
+   */
   title: 'Vuepress Docs Boilerplate',
-  // Ref https://vitepress.vuejs.org/config/app-configs.html#base
   // base: '/'
-  // Ref https://vitepress.vuejs.org/config/app-configs.html#description
   description: pkg.description,
-  // Ref https://vitepress.vuejs.org/config/app-configs.html#head
   // head: [],
-  // Ref https://vitepress.vuejs.org/config/app-configs.html#lang
   // lang:'en-US',
-  // Ref https://vitepress.vuejs.org/config/app-configs.html#lastupdated
   // lastUpdated:false,
-  // Ref https://vitepress.vuejs.org/config/app-configs.html#markdown
   // markdown:{},
-  // Ref https://vitepress.vuejs.org/config/app-configs.html#outdir
   // outDir: './.vitepress/dist',
-  // Ref https://vitepress.vuejs.org/config/app-configs.html#ignoredeadlinks
   // ignoreDeadLinks:false,
-  // Ref https://vitepress.vuejs.org/config/app-configs.html#appearance
   // appearance: true,
 
   themeConfig: {
