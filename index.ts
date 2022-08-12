@@ -1,14 +1,17 @@
 #!/usr/bin/env node
 
+// library
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-
 import minimist from 'minimist'
-import prompts from 'prompts'
-import { red, green, bold } from 'kolorist'
+import { green, bold } from 'kolorist'
+// utils
 import banner from './utils/banner'
-import { canSkipEmptying, emptyDir } from './utils/empty'
+import { emptyDir } from './utils/empty'
 import getCommand from './utils/command'
+import cliPrompts from './utils/prompts'
+import { renderTemplate } from './utils/templateRender'
+import readmeRender from './utils/readmeRender'
 
 async function init() {
   console.log(`\n${banner}\n`)
@@ -40,6 +43,10 @@ async function init() {
   // force over write file
   const forceOverwrite = argv.force
 
+  //
+  const isFeatureFlagsUsed = typeof (argv.blog ?? argv.docs ?? argv.base ?? argv.ts) === 'boolean'
+
+  // prompts results
   let result: {
     typescript?: boolean
     projectName?: string
@@ -52,103 +59,15 @@ async function init() {
     repo?: string
   } = {}
 
-  const isFeatureFlagsUsed = typeof (argv.blog ?? argv.docs ?? argv.base ?? argv.ts) === 'boolean'
-
-  // Prompts:
-  // 1. type <=select
-  // 2. name
-  // 3. description
-  // 4. email
-  // 5. your name =>author
-  // 6. repo url
   try {
-    result = await prompts(
-      [
-        {
-          type: () => (isFeatureFlagsUsed ? null : 'select'),
-          name: 'projectType',
-          message: 'Select the boilerplate type :',
-          choices: [
-            {
-              title: 'docs',
-              value: 'docs',
-              description: 'Create a documentation project with VitePress.'
-            },
-            { title: 'blog', value: 'blog', description: 'Create a blog with VitePress.' }
-          ],
-          initial: 0
-        },
-        {
-          name: 'shouldOverwrite',
-          type: () => (canSkipEmptying(targetDir) || forceOverwrite ? null : 'confirm'),
-          message: () => {
-            const dirForPrompt =
-              targetDir === '.' ? 'Current directory' : `Target directory "${targetDir}"`
-
-            return `${dirForPrompt} is not empty. Remove existing files and continue?`
-          }
-        },
-        {
-          name: 'overwriteChecker',
-          type: (prev, values) => {
-            if (values.shouldOverwrite === false) {
-              throw new Error(red('✖') + ' Operation cancelled')
-            }
-            return null
-          }
-        },
-        {
-          name: 'projectName',
-          type: targetDir ? null : 'text',
-          message: 'Project name:',
-          initial: defaultProjectName,
-          onState: (state) => (targetDir = String(state.value).trim() || defaultProjectName)
-        },
-        {
-          name: 'description',
-          type: 'text',
-          message: `What's the description of your project?`,
-          initial: ''
-        },
-        {
-          name: 'email',
-          type: 'text',
-          message: `What's your email?`,
-          initial: ''
-        },
-        {
-          name: 'author',
-          type: 'text',
-          message: `What's your name?`,
-          initial: ''
-        },
-        {
-          name: 'repo',
-          type: 'text',
-          message: `What's the repo of your project?`,
-          initial: ''
-        },
-        {
-          name: 'needsTypeScript',
-          type: () => (isFeatureFlagsUsed ? null : 'toggle'),
-          message: 'Add TypeScript?',
-          initial: false,
-          active: 'Yes',
-          inactive: 'No'
-        }
-      ],
-      {
-        onCancel: () => {
-          throw new Error(red('✖') + ' Operation cancelled')
-        }
-      }
-    )
+    result = await cliPrompts(isFeatureFlagsUsed, targetDir, forceOverwrite, defaultProjectName)
   } catch (cancelled: any) {
     console.log(cancelled.message)
     process.exit(1)
   }
 
-  const { projectName, description, author, email, repo, shouldOverwrite, needsTypeScript } = result
+  const { type, projectName, description, author, email, repo, shouldOverwrite, needsTypeScript } =
+    result
   console.log(result)
 
   const root = path.join(cwd, targetDir)
@@ -160,6 +79,33 @@ async function init() {
     // mkdir dir
     fs.mkdirSync(root)
   }
+
+  // package.json base
+  const pkg = {
+    name: projectName,
+    version: '0.0.1',
+    description: description,
+    authors: {
+      name: author,
+      email
+    },
+    repository: repo
+  }
+
+  // write base package.json
+  fs.writeFileSync(path.resolve(root, 'package.json'), JSON.stringify(pkg, null, 2))
+
+  // template root dir
+  const templateRoot = path.resolve(__dirname, 'template')
+
+  // render  package by template dir
+  const render = function render(templateName: string) {
+    const templateDir = path.resolve(templateRoot, templateName)
+    renderTemplate(templateDir, root)
+  }
+
+  // render base template
+  render('base')
 
   // base
   /*
@@ -191,18 +137,43 @@ async function init() {
       - package.json
   */
 
-  const pkg = { name: projectName, version: '0.0.1' }
-  fs.writeFileSync(path.resolve(root, 'package.json'), JSON.stringify(pkg, null, 2))
+  // render template code
+  switch (type) {
+    case 'docs':
+      render('code/docs')
+      break
+    case 'blog':
+      render('code/blog')
+      break
+    case 'theme-template':
+      render('code/themeTemplate')
+      break
+    default:
+      break
+  }
 
-  const templateRoot = path.resolve(__dirname, 'template')
+  // - use typescript
+  if (needsTypeScript) {
+    // TODO file .js ->ts
+    // render ts template
+  }
 
+  // use package manager
   const userAgent = process.env.npm_config_user_agent ?? ''
   const packageManager = /pnpm/.test(userAgent) ? 'pnpm' : /yarn/.test(userAgent) ? 'yarn' : 'npm'
+
+  // render README.md
+  let readmeMd = readmeRender(projectName, packageManager)
+
   console.log(`\nDone. Now run:\n`)
+
   if (root !== cwd) {
     console.log(`  ${bold(green(`cd ${path.relative(cwd, root)}`))}`)
   }
+
   console.log(`  ${bold(green(getCommand(packageManager, 'install')))}`)
+  console.log()
+
   console.log(`  ${bold(green(getCommand(packageManager, 'dcos:dev')))}`)
   console.log(`  ${bold(green(getCommand(packageManager, 'dcos:builds')))}`)
   console.log()
